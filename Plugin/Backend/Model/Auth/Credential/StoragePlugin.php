@@ -112,54 +112,36 @@ final class StoragePlugin
         }
 
         $subject->loadByUsername($username);
-
-        // allow local users to login
-        if (!$subject->isEmpty() && strlen(trim($subject->getLdapDn())) === 0) {
-            // go the magento way and provide the ability to call other auth mechanism
-            return $proceed($username, $password);
-        }
-
         $result = false;
 
+        $params = ['username' => $username, 'user' => $subject];
+        $this->eventManager->dispatch('admin_user_authenticate_before', $params);
+
         try {
-            $params = ['username' => $username, 'user' => $subject];
+          $ldapAttributes = $this->ldapClient->getUserByUsername($username)->current();
 
-            $this->eventManager->dispatch('admin_user_authenticate_before', $params);
+          //Check if the result from the LDAP is valid
+          if (!empty($ldapAttributes)){
+            $this->userMapper->mapUser($ldapAttributes, $password, $subject);
 
-            // try to use local credentials if present
-            if (!$this->ldapClient->canBind() && !$subject->isEmpty()) {
-                if ($this->passwordValidator->isPasswordCachedAllowed()) {
-                    return $proceed($username, $password);
-                }
-
-                throw new LocalizedException(__('Login temporarily deactivated. Check your logs for more Information.'));
-            }
-
-            $ldapAttributes = $this->ldapClient->getUserByUsername($username)->current();
-
-            if (!empty($ldapAttributes)) {
-                $this->userMapper->mapUser($ldapAttributes, $password, $subject);
-
-                if ($this->passwordValidator->validatePassword($password, $ldapAttributes['userpassword'][0])) {
-                    $this->userResource->save($subject);
-                    $result = true;
-                }
-
+            if ($this->ldapClient->checkLoginAgainstLDAP($username, $password)) {
+                $this->userResource->save($subject);
+                $result = true;
                 $this->validateIdentity($subject);
             }
-            $params = ['username' => $username, 'password' => $password, 'user' => $subject, 'result' => $result];
-
-            $this->eventManager->dispatch('admin_user_authenticate_after', $params);
-
-        } catch (LocalizedException $e) {
-            $subject->unsetData();
-            throw $e;
+          } else { //Unvalid result, hand over to Magento
+            $result = $proceed($username, $password);
+          }
+        } catch(Zend_Ldap_Exception $e){ //Okay, we did not find the user in LDAP, hand over to Magento
+          $result = $proceed($username, $password);
         }
+
+        $params = ['username' => $username, 'password' => $password, 'user' => $subject, 'result' => $result];
+        $this->eventManager->dispatch('admin_user_authenticate_after', $params);
 
         if ($result === false) {
             $subject->unsetData();
         }
-
         return $result;
     }
 

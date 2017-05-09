@@ -80,6 +80,21 @@ class LdapClient implements LdapClientInterface
         }
     }
 
+    public function checkLoginAgainstLDAP($username, $password){
+
+      $connOptions = $this->configuration->getLdapConnectionOptions();
+      $connOptions['username'] = $username;
+      $connOptions['password'] = $password;
+
+      try {
+        $tempLDAP = new Zend_Ldap($connOptions);
+        $tempLDAP->bind();
+        return true;
+      } catch(Exception $e){
+        return false;
+      }
+    }
+
     /**
      * {@inheritdoc}
      */
