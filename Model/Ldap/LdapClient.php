@@ -80,10 +80,10 @@ class LdapClient implements LdapClientInterface
         }
     }
 
-    public function checkLoginAgainstLDAP($username, $password){
+    public function checkLoginAgainstLDAP($bindDN, $password){
 
       $connOptions = $this->configuration->getLdapConnectionOptions();
-      $connOptions['username'] = $username;
+      $connOptions['username'] = $bindDN;
       $connOptions['password'] = $password;
 
       try {

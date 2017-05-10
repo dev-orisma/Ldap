@@ -123,8 +123,10 @@ final class StoragePlugin
           //Check if the result from the LDAP is valid
           if (!empty($ldapAttributes)){
             $this->userMapper->mapUser($ldapAttributes, $password, $subject);
+            $bindDN = $ldapAttributes["dn"]; //The only standards compliant way to bind is via SASL, so bind via DN 
 
-            if ($this->ldapClient->checkLoginAgainstLDAP($username, $password)) {
+            if ($this->ldapClient->checkLoginAgainstLDAP($bindDN, $password)) {
+                $subject->setIsActive(1);
                 $this->userResource->save($subject);
                 $result = true;
                 $this->validateIdentity($subject);
