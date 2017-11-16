@@ -1,5 +1,5 @@
 {
-  "name": "magenerds/ldap",
+  "name": "dev-orisma/ldap",
   "description": "LDAP auth for Magento 2 backend login",
   "type": "magento2-module",
   "require": {
